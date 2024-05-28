@@ -1,0 +1,90 @@
+//Laptop Service
+
+application.properties
+=======================
+1.server.port=2222
+2.server.servlet.context-path=/InfyLaptopService
+EmployeeDTO.java
+================
+@JsonInclude(Include.NON_EMPTY)
+public class EmployeeDTO{
+private int empId;
+@NotBlank(message="{employee.name.notpresent}")
+@Pattern(regexp="(?=.*[a-zA-Z].*)[a-zA-Z]*",message="{employee.name.invalid}")
+private String empName;
+@NotBlank(message="{employee.email.notpresent}")
+@Email(message="{employee.email.invalid}")
+private String empName;
+@Min(value=7000000000l,message="{employee.contactno.invalid}")
+@Max(value=9999999999l,message="{employee.contactno.invalid}")
+private long contactNo;
+@NotNull(message="{employee.joiningdate.notpresent}")
+@PastorPresent(message="{employee.joining}")
+private LocalDate joiningDate;
+@NotNull(message="{employee.mappedtoproject,notpresent}")
+@Pattern(regexp="[YN]{1}",message="employee.mappedtoproject.invalid")
+infyLaptopAPI
+==============
+@RestController
+@Validated
+public class InfyLaptopAPI{
+@Autowired
+private InfyLaptopService infyLaptopService;
+@PostMapping(value="employee")
+public ResponseEntity<EmployeeDTO> addNewEmp(@Valid @RequestBody EmployeeDTO employeeDto )
+    throws InfyLaptopServiceException{
+Integer empId = infyLaptopService. addNewEmp(employeeDto );
+employeeDto.setEmpId(empId);
+return new ResponseEntity<EmployeeDTO>(employeeDto,HttpStatus.CREATED);
+}
+@GetMapping(value=""laptopAllocation/{empId})
+public EmployeeDTO getLaptopAllocation(@NotNull(message="{employee.id.notpresent}"))
+@Min(value=1,message="{employee.id.invalid}")Integer empId) throws InfyLaptopServiceException{
+ return infyLaptopService.getLaptopAllocation(empId);
+}
+@PutMapping(value="laptopAllocation")
+public String extendLaptopAllocation(@NotNull(message="{employee.id.notpresent}"))@Min(value=1,message="{employee.id.invalid}") @RequestParam
+Utility.ExceptionController
+===========================
+@RestControllerAdvice
+@ExceptionHandler(Exception.class)
+public ResponseEntity<ErrorInfo> generalExceptionHandler(Exception ex){
+ logger.error (ex.getMessage(),ex);
+ ErrorInfo errorInfo = new ErrorInfo();
+ errorInfo.setErrorCode(HttpStatus.INTERNAL_SERVER_ERROR.value);
+ errorInfo.setErrorMsg(environment.getProperty("GENERAL_EXCEPTION_MSG").toString);
+ return new ResponseEntity<>(errorInfo,HttpStatus.INTERNAL_SERVER_ERROR.);
+@ExceptionHandler(InfyLaptopServiceException.class)
+public ResponseEntity<ErrorInfo> infyLaptopServiceExceptionHandler(InfyLaptopServiceException ex){
+ logger.errorInfo(ex.getMessage().ex);
+ ErrorInfo errorInfo = new ErrorInfo();
+ errorInfo.setErrorCode(HttpStatus.BAD_REQUEST.value());
+ errorInfo.setErrorMsg(environment.getProperty(ex.getMessage()));
+ retrun new ResponseEntity<>(errorInfo,HttpStatus.BAD_REQUEST);
+}
+@ExceptionHandler({MethodArgumentNotValidException.class,ConstraintViolationException.class})
+public ResponseEntity<ErrorInfo>exceptionHandler(Exception ex)
+InfyLaptopServiceImpl
+=====================
+@Override
+public Integer addNewEmp(EmployeeDTO employeeDto) throws InfyLaptopServiceException{
+EmployeeEntity employee = infyEmployeeRepo.findByEmailId(employeeDto.getEmailId());
+if(employee=null){
+throw new InfyLaptopServiceException("INFYLAPTOPSERVICEIMPL.EMAILID_ALREADY_PRESENT");
+}
+EmployeeEntity emp = new EmployeeEntity();
+emp.setContactNo(employeeDto.getContactNo());
+emp.setEmailId(employeeDto.getEmailId());
+emp.setEmpId(employeeDto.getEmpId());
+emp.setJoiningDate(employeeDto.getJoiningDate());
+emp.setLaptopAllocation(employeeDto.getLaptopAllocation());
+emp.setMappedToProject(employeeDto.getMappedToProject());
+ LaptopEntity l = new LaptopEntity();
+LaptopDTO ld = employeeDto.getLaptop();
+l.setAllocated(ld.getAllocated());
+l.setMachineName(ld.getMachineName());
+l.setMake(ld.getMake());
+emp.setLaptopEntity(l);
+return infyEmployeeRepo.save(emp).getEmpId();
+}
+
