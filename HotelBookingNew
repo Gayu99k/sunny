@@ -1,0 +1,131 @@
+//trivainfy / hotel booking
+
+-----------TrivaInfy------------
+Application properties->
+server.port=
+server.servlet.context-path=/TrivaInfy
+---------------------------------------------------
+BookingDTO->
+public class BookingDTO{
+ @NotNull(message="{booking.hotelname.invalid}")
+    @NotBlank(message="{booking.hotelname.invalid}")
+ private String hotelName;
+ @NotNull(message="{booking.vendorname.invalid}")
+    @NotBlank(message="{booking.vendorname.invalid}")
+ private String vendorName;
+ @Min(value=1,message="{booking.noofrooms.invalid}")
+ private int noOfRooms;
+}
+------------------------
+ExceptionControllerAdvice ->
+@RestControllerAdvice
+public class ExceptioncontrollerAdvice{
+ private final Logger logger=LoggerFactory.getLogger(this.getClass());
+ @Autowired
+ private Environment environment;
+ @ExceptionHandler(Exception.class)
+ public ResponseEntity<ErrorInfo>.............{
+ logger.error(ex.getMessage(),ex);
+ ErrorInfo errorInfo=new ErrorInfo();
+ errorInfo.setErrorCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+ errorInfo.setErrorMsg(environment.getProperty(TrivaInfyConstants.TRIVAINFY_EXCEPTION.toString());
+ return new ResponseEntity<>(errorInfo,HttpStatus.INTERNAL_SERVER_ERROR);
+}
+ @ExceptionHandler(InfyPandaException.class)
+ public ResponseEntity<ErrorInfo>.............{
+ logger.error(ex.getMessage(),ex);
+ ErrorInfo errorInfo=new ErrorInfo();
+ errorInfo.setErrorCode(HttpStatus.BAD_REQUEST.value());
+ errorInfo.setErrorMsg(environment.getProperty(ex.getMessage());
+ return new ResponseEntity<>(errorInfo,HttpStatus.BAD_REQUEST);
+}
+ @ExceptionHandler({MethodArgumentNotValidException.class,ConstraintViolationException})
+}
+-------------------------------------------------------------------------------------------------------------------------
+TrivaInfyServiceImpl ->
+@Service
+@Transactional
+public List<HotelDTO>searchHotels(String hotelNameSearchKey) throws TrivaInfyException{
+ List<HotelDTO>searchHotels=hotelRepository.findByHotelNameContainingIgnoreCase(hotelNameSearchKey);
+ if(listHotels.isEmpty()){
+ throw new TrivaInfyException(TrivaInfyConstants.TRIVAINFY_SEARCH_HOTEL_INVALID.toString());
+ }
+ List<HotelDTO>hoteldtoList=new ArrayList<>();
+ for(Hotel hotel:listHotels){
+ if(hotel.getHotelStatus().equals("A")){
+  hoteldtoList.add(HotelDTO.entityToDTOConvertor(hotel));
+ }
+ }
+ if(hoteldtoList.isEmpty()){
+ throw new TrivaInfyException(TrivaInfyConstants.TRIVAINFY_SEARCH_HOTEL_INVALID.toString());
+ }else{
+ return hoteldtoList;
+ }
+}
+public List<VendorDTO>searchVendors(String vendorNameSearchKey) throws TrivaInfyException{
+ List<Vendor>vendorListFromRepo=vendorRepository.findByVendorNameContainingIgnoreCase(vendorNameSearchKey);
+ if(vendorListFromRepo.isEmpty()){
+ throw new TrivaInfyException(TrivaInfyConstants.TRIVAINFY_SEARCH_HOTEL_INVALID.toString());
+ }
+ List<VendorDTO>vendorDtoList=newArrayList<>();
+ for(Vendor vendor: vendorListFromRepo){
+   VendorDTO vendorDto=new VendorDTO();
+   vendorDto.setVendorId(vendor.getVendorId());
+   vendorDto.setVendorName(vendor.getVendorName());
+   List<HotelDTO>hotelDtoList=new ArrayList<>();
+   for(Hotel hotel : vendor.getHotels()){
+ if("A".equals(hotel.getHotelStatus())){
+  HotelDTO hotelDto=new HotelDTO();
+  hotelDto.setHotelId(hotel.getHotelId());
+  hotelDto.setHotelName(hotel.getHotelName());
+  hotelDto.setLocation(hotel.getLocation());
+  hotelDto.setRoomCharge(hotel.getRoomCharge());
+  hotelDto.setAmenities(hotel.getAmenities());
+  hotelDto.setRoomAvailable(hotel.getRoomAvailable());
+  hotelDto.setHotelStatus(hotel.getHotelStatus());
+  hotelDtoList.add(hotelDto);
+ }
+  }
+  vendorDto.setHotels(hotelDtoList);
+  vendorDtoList.add(vendorDto);
+  }
+  return vendorDtoList;
+}
+-------------------------------------------------------------------------------------------------------------------------------
+API-->
+@RestController
+@Validated
+@RequestMapping
+public class TrivaInfyController{
+ @Autowired
+ private TrivaInfyService trivaInfyService;
+ @GetMapping("/hotels/{hotelNameSearchKey}")
+ public List<HotelDTO>searchHotels(@PathVariable String hotelNameSearchkey) throws TrivaInfyException{
+     return trivaInfyService.searchHotels(hotelNameSearchKey.trim());
+    }
+ @GetMapping("/vendors/{vendorNameSearchKey}")
+ public List<VendorDTO>searchVendors(@PathVariable String vendorNameSearchkey) throws TrivaInfyException{
+     return trivaInfyService.searchVendors(vendorNameSearchKey.trim());
+    }
+ @PostMapping(value=("/booking"),consumes="application/json")
+ public String bookHotel(@Valid @RequestBody BookingDTO bookingDto) throws TrivaInfyException{
+ return trivaInfyService.bookHotel(bookingDto);
+    }
+ @PostMapping(value=("/booking/{bookingId}/noOfRoomsNew")
+ public String updateBooking(@PathVariable @Min(value=1,message="{booking.bookingid.invalid}") Integer bookingId,
+@PathVariable @Min(value=1,message="{booking.noOfrooms.invalid}") Integer noOfRoomsNew) throws TrivaInfyException{
+ return trivaInfyService.updateBooking(bookingId,noOfRoomsNew);
+    }
+ @DeleteMapping("/booking/{bookingId}")
+ public String cancelBooking(@PathVariable @Min(value=1,message="{booking.bookingid.invalid}")Integer bookingId) throws TrivaInfyException{
+ return trivaInfyService.cancelBooking(bookingId);
+    }
+}
+
+
+
+
+
+
+
+
