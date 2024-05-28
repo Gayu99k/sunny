@@ -1,0 +1,149 @@
+regex >
+Email-String emailIdRegex = "([A-Za-z0-9-_]+)[@]([a-z]+)[.](com|in)";
+----------------------------------------------------------
+Application Properties ->
+
+server.port=2222
+server.servlet.context-path=/InfyPanda
+----------------------------------------------
+
+DTO ->
+
+public class CancelBookingDTO {
+    @NotBlank(message="{ride.reasonforcancellation.notpresent}")
+    @Pattern(regexp="(?=.*[a-zA-Z0-9].*)[a-zA-Z0-9.,! ]*", message="{ride.reasonforcancellation.invalid}" )
+    private String reasonForCancellation;
+---------------------++++++++++++_----------------
+
+@NotBlank(message="{order.itemname.invalid}")
+private String itemName;
+
+@NotBlank(message="{order.restaurantname.invalid}")
+private String restaurantName;
+
+@Min(value=1,message="{order.quantity.invalid}")
+private int quantity;
+	
+------------------++++++++++++-------------------
+
+	@NotNull(message="{booking.hotelname.invalid}")
+        @NotBlank(message="{booking.hotelname.invalid}")
+	private String hotelName;
+
+	@NotNull(message="{booking.vendorname.invalid}")
+        @NotBlank(message="{booking.vendorname.invalid}")
+	private String vendorName;
+	
+	@Min(value=1,message="{booking.noofrooms.invalid}")
+	private int noOfRooms;	
+}
+-------------------------------++++++++++++++++++++_------------
+@NotNull(message="{branch.openingtime.invalid}")
+private LocalTime openingTime;
+
+@NotNull(message="{branch.closingtime.invalid}")
+private LocalTime closingTime;
+
+private String ifscCode;
+
+@NotBlank(message="{branch.type.notpresent}")
+@Pattern(regexp="(Retail|Commercial|Overseas)",message="{branch.type.invalid}")
+private String branchType;
+
+@NotBlank(message="{branch.address.invalid}")
+private String address;
+
+@Min(value=100000,message= "{branch.pincode.invalid}")
+@Max(value=999999,message= "{branch.pincode.invalid}")
+private long pinCode;
+
+@Min(value=1000000000l,message= "{branch.phonenumber.invalid}")
+@Max`(value=9999999999l,message= "{branch.phonenumber.invalid}")
+private long phoneNumber;
+
+-------------------------------------------------
+@RestControllerAdvice
+public class ExceptioncontrollerAdvice{
+	private final Logger logger=LoggerFactory.getLogger(this.getClass());
+
+	@Autowired
+	private Environment environment;
+  
+	@ExceptionHandler(Exception.class)
+	public ResponseEntity<ErrorInfo>.............{
+	logger.error(ex.getMessage(),ex);
+	ErrorInfo errorInfo=new ErrorInfo();
+	errorInfo.setErrorCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+	errorInfo.setErrorMsg(environment.getProperty(InfyPandaConstants.INFYPANDA_EXCEPTIONMSG_GENERAL.toString());
+	return new ResponseEntity<>(errorInfo,HttpStatus.INTERNAL_SERVER_ERROR);
+}
+	@ExceptionHandler(InfyPandaException.class)
+	public ResponseEntity<ErrorInfo>.............{
+	logger.error(ex.getMessage(),ex);
+	ErrorInfo errorInfo=new ErrorInfo();
+	errorInfo.setErrorCode(HttpStatus.BAD_REQUEST.value());
+	errorInfo.setErrorMsg(environment.getProperty(ex.getMessage());
+	return new ResponseEntity<>(errorInfo,HttpStatus.BAD_REQUEST);
+}
+	@ExceptionHandler({MethodArgumentNotValidException.class,ConstraintViolationException})
+
+}
+-------------------------------------------------
+InfyPandaServiceImpl ->
+
+@Service
+@PropertySource("classpath:ValidationMessages.properties")
+public class BranchServiceImpl implements BranchService{
+
+@Override
+ 	public BranchDTO addBranch(BranchDTO branchDTO) throws InfyBankBranchExcepion{
+
+		BranchDetailsValidator.validateTimings(branchDTO.getOpeningTime(),branchDTO.getClosingTime());
+		List<BranchEntity> branches=branchRepository.findByAddress(branchDTO.getAddress());
+		if(!branches.isEmpty()){
+			throw new InfyBankBranchExcepion("BranchServiceImpl.DUPLICATE_BRANCH");
+		}
+
+		List<BranchEntity> brancheByPhones=branchRepository.findByPhoneNumber(branchDTO.getPhoneNumber());
+		if(!brancheByPhones.isEmpty()){
+			throw new InfyBankBranchExcepion("BranchServiceImpl.PHONENUMBER_ALREADY_EXISTS");
+		}
+
+		BranchEntity be=BranchDTO.dtoToEntityConverter(branchDTO);
+		be.setBranchCode(branchRepository.getMaxBranchCode()+1);
+		be.setIfscCode("INFYOOO"+be.getBranchCode());
+		be.setEmailId("infybank."+be.getBranchCode()+"@infybank.co.in");
+		be.setStatus("ACTIVE");
+
+		branchRepository.save(be);
+
+		branchDTO.setBranchCode(be.getBranchCode());
+		branchDTO.setIfscCode(be.getIfscCode());
+		branchDTO.setEmailId(be.getEmailId());
+		branchDTO.setStatus(be.getStatus());
+
+		return branchDTO;
+
+-------------------++++++++++++++++---------------
+
+@Service
+@Transactional
+public List<RestaurantDTO>searchRestaurantsWithItemName(String ItemName) throws InfyPandaException{
+------------------------------------------------
+
+API(Controller)->
+
+@RestController
+@Validated
+public class InfyPandaController{
+
+public String updateOrder(@PathVariable @Min(value=1,message="{order.orderid.invalid}" Integer orderId,
+                                       @PathVariable @Min(value=1,message="{order.quantity.invalid}") Integer quantityNew) throws InfyPandaException{
+		String msg=infyPandaService.updateOrder(orderId,quantityNew);
+		return msg;
+	}
+}
+--------------------------------------
+
+
+
