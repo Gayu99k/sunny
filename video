@@ -1,0 +1,327 @@
+@PropertySource("classpath:ValidationMessages.properties")
+@RestController
+@RequestMapping("/api")
+@Validated
+public class InfyVidStreamController {
+  @Autowired
+  private InfyVidStreamService infyVidStreamService;
+  @PostMapping("/users/register")
+  // @RequestMapping(method=RequestMethod.POST,value="/users/register")
+    public ResponseEntity<UsersDTO> registerUser(
+        @Valid @RequestBody
+        UsersDTO request) throws InfyVidStreamException {
+      String message = infyVidStreamService.registerUser(request);
+      return new ResponseEntity<UsersDTO>(HttpStatus.CREATED);
+    }
+    @GetMapping("/users/profiles/{userId}")
+    public ResponseEntity<UsersDTO> getUserProfile(
+        @RequestParam("userId")
+        @Min(value=100,message="{user.id.invalid}")
+        Long userId) throws InfyVidStreamException {
+      UsersDTO userProfileDTO = infyVidStreamService.getUserProfile(userId);
+      return ResponseEntity.status(HttpStatus.OK).body(userProfileDTO);
+          }
+    @PostMapping(value="/users/{userId}/favorites",consumes="application/json")
+    public ResponseEntity<String> addMovieToFavorites(
+        @PathVariable("userId")
+        @Min(value=100,message="{user.id.invalid}")
+        Long userId, @Valid @RequestBody MovieDTO request) throws InfyVidStreamException {
+   return new ResponseEntity<String>(infyVidStreamService.addMovieToFavorites(userId, request), HttpStatus.OK);
+    }
+}
+=============================================================================
+public class MovieDTO {
+  @NotNull(message="{movie.id.null}")
+  @Min(value=100,message="{movie.id.invalid}")
+  private Long movieId;
+  private String movieTitle;
+  private String movieGenre;
+  private LocalDate movieReleaseYear;
+  public Long getMovieId()
+  {
+    return movieId;
+  }
+  public void setMovieId(Long movieId)
+  {
+    this.movieId = movieId;
+  }
+  public String getMovieTitle()
+  {
+    return movieTitle;
+  }
+  public void setMovieTitle(String movieTitle)
+  {
+    this.movieTitle = movieTitle;
+  }
+  public String getMovieGenre()
+  {
+    return movieGenre;
+  }
+  public void setMovieGenre(String movieGenre)
+  {
+    this.movieGenre = movieGenre;
+  }
+  public LocalDate getMovieReleaseYear() {
+    return movieReleaseYear;
+  }
+  public MovieDTO() {
+    super();
+    // TODO Auto-generated constructor stub
+  }
+  public void setMovieReleaseYear(LocalDate movieReleaseYear) {
+    this.movieReleaseYear = movieReleaseYear;
+  }
+  public MovieDTO(Long movieId, String movieTitle, String movieGenre, LocalDate movieReleaseYear) {
+    super();
+    this.movieId = movieId;
+    this.movieTitle = movieTitle;
+    this.movieGenre = movieGenre;
+    this.movieReleaseYear = movieReleaseYear;
+  }
+  @Override
+  public String toString() {
+    return "MovieDto{" + "movieId=" + movieId + ", movieTitle='" + movieTitle + '\'' + ", movieGenre='" + movieGenre
+        + '\'' + ", movieReleaseYear=" + movieReleaseYear + '}';
+  }
+}
+============================================================================
+public class UsersDTO {
+  String custommessage;
+  @NotNull(message="{user.id.null}")
+  @Min(value=100,message="{user.id.invalid}")
+  private Long userId;
+  @NotBlank(message="{user.name.invalid1}")
+  @Size(min=5,max=15,message="{user.name.invalid}")
+  private String userName;
+  @NotBlank(message="{user.email.invalid1}")
+  @Email(message="{user.email.invalid}")
+  private String email;
+  //@JsonIgnore
+  @NotEmpty(message="{user.password.must}")
+  @NotNull(message="{user.password.must}")
+  @Pattern(regexp="(?=.*\\d)(?=.*[a-z])(?=.*[A-Z])(?!\\s)[a-zA-Z\\d]{8,}",message="{user.password.invalid}")
+  private String password;
+  public String getMessage() {
+    return custommessage;
+  }
+  public void setMessage(String message) {
+    this.custommessage = message;
+  }
+  public Long getUserId() {
+    return userId;
+  }
+  public void setUserId(Long userId) {
+    this.userId = userId;
+  }
+  public String getUserName() {
+    return userName;
+  }
+  public void setUserName(String userName) {
+    this.userName = userName;
+  }
+  public String getEmail() {
+    return email;
+  }
+  public void setEmail(String email) {
+    this.email = email;
+  }
+  public String getPassword() {
+    return password;
+  }
+  public void setPassword(String password) {
+    this.password = password;
+  }
+  public UsersDTO() {
+    super();
+    // TODO Auto-generated constructor stub
+  }
+  public UsersDTO(Long userId, String userName, String email, String password) {
+    super();
+    this.userId = userId;
+    this.userName = userName;
+    this.email = email;
+    this.password = password;
+  }
+  @Override
+  public String toString() {
+    return "UsersDTO [userId=" + userId + ", userName=" + userName + ", email=" + email + ", password=" + password
+        + "]";
+  }
+  public UsersDTO createDTO(UserEntity userEntity) {
+    UsersDTO userDTO = new UsersDTO();
+    userDTO.setEmail(userEntity.getEmail());
+    userDTO.setPassword(userEntity.getPassword());
+    userDTO.setUserId(userEntity.getUserId());
+    userDTO.setUserName(userEntity.getUserName());
+    return userDTO;
+  }
+  private Set<MovieDTO> movieFavorites;
+  public Set<MovieDTO> getMovieFavorites() {
+    return movieFavorites;
+  }
+  public void setMovieFavorites(Set<MovieDTO> movieFavorites) {
+    this.movieFavorites = movieFavorites;
+  }
+}
+=============================================================================
+@Service(value="InfyVidStreamService")
+@Transactional
+@PropertySource("classpath:ValidationMessages.properties")
+public class InfyVidStreamServiceImpl implements InfyVidStreamService {
+  @Autowired
+  private InfyUserRepository userRepository;
+  @Autowired
+  private InfyMovieRepository movieRepository;
+  @Autowired
+  private Environment environment;
+  @Override
+  public String registerUser(UsersDTO request) throws InfyVidStreamException {
+    UserEntity findByUserName = userRepository.findByUserName(request.getUserName());
+    if(findByUserName!=null) {
+      throw new InfyVidStreamException(InfyVidStreamConstants.INFYVIDSTREAM_USERNAME_EXISTS.toString());
+    }
+    UserEntity findByEmail = userRepository.findByEmail(request.getEmail());
+    if(findByEmail!=null) {
+      throw new InfyVidStreamException(InfyVidStreamConstants. INFYVIDSTREAM_EMAILID_EXISTS.toString());
+    }
+    UserEntity userEntity = new UserEntity();
+    userEntity.setUserId(request.getUserId());
+    userEntity.setEmail(request.getEmail());
+    userEntity.setUserName(request.getUserName());
+    userEntity.setPassword(request.getPassword());
+    userRepository.save(userEntity);
+    String m = InfyVidStreamConstants.INFYVIDSTREAM_USER_REGISTERED.toString()+userEntity.getUserId().toString();
+    return m;
+  }
+  @Override
+  public UsersDTO getUserProfile(Long userId) throws InfyVidStreamException {
+    Optional<UserEntity> optional = userRepository.findById(userId);
+    if(optional.isPresent()) {
+      UsersDTO usersDTO =new UsersDTO();
+      usersDTO.setUserId(optional.get().getUserId());
+      usersDTO.setUserName(optional.get().getUserName());
+      usersDTO.setEmail(optional.get().getEmail());
+      usersDTO.setPassword(optional.get().getPassword());
+      //usersDTO.setMovieFavorites(optional.get().);
+      return usersDTO;
+    }else {
+      throw new InfyVidStreamException(InfyVidStreamConstants.INFYVIDSTREAM_USERID_NOTFOUND.toString());
+    }
+  }
+  @Override
+  public String addMovieToFavorites(Long userId, MovieDTO request) throws InfyVidStreamException {
+    Optional<UserEntity> optional = userRepository.findById(userId);
+    if(optional.isPresent()) {
+      Optional<MovieEntity> id = movieRepository.findById(request.getMovieId());
+      if(id.isPresent()) {
+        //userRepository
+      }
+      throw new InfyVidStreamException(InfyVidStreamConstants.INFYVIDSTREAM_MOVIEID_NOT_FOUND.toString()+request.getMovieId().toString());
+    }
+    else {
+      throw new InfyVidStreamException(InfyVidStreamConstants.INFYVIDSTREAM_USERID_INVALID.toString()+optional.get().getUserId());
+    }
+  }
+  // update user profile
+  public ResponseEntity<?> updateUserProfile(Long userId, UsersDTO request) throws InfyVidStreamException {
+    UserEntity existingUser = userRepository.findById(userId).orElseThrow(() -> new InfyVidStreamException(
+        InfyVidStreamConstants.INFYVIDSTREAM_USERID_INVALID.toString() + userId));
+    existingUser.setUserName(request.getUserName());
+    existingUser.setEmail(request.getEmail());
+    userRepository.save(existingUser);
+    return ResponseEntity.ok(InfyVidStreamConstants.INFYVIDSTREAM_UPDATE_SUCCESS.toString());
+  }
+  public ResponseEntity<?> removeMovieFromFavorites(Long userId, Long movieId) throws InfyVidStreamException {
+    UserEntity user = userRepository.findById(userId)
+        // .orElseThrow(() -> new InfyVidStreamException("User not found with id: " +
+        // userId));
+        .orElseThrow(() -> new InfyVidStreamException(
+            InfyVidStreamConstants.INFYVIDSTREAM_USERID_INVALID.toString() + userId));
+    MovieEntity movie = movieRepository.findById(movieId)
+        // .orElseThrow(() -> new InfyVidStreamException("Movie not found with id: " +
+        // movieId));
+        .orElseThrow(() -> new InfyVidStreamException(
+            InfyVidStreamConstants.INFYVIDSTREAM_MOVIEID_NOT_FOUND.toString() + movieId));
+    if (!user.getFavorites().contains(movie)) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Movie is not in users favorites");
+    } else {
+      user.removeFromFavorites(movie);
+      userRepository.save(user);
+      return ResponseEntity.ok(InfyVidStreamConstants.INFYVIDSTREAM_MOVIE_REMOVED_FAVORITES.toString());
+    }
+  }
+}
+============================================================================
+/**
+ * The Class ExceptionControllerAdvice.
+ */
+@RestControllerAdvice
+public class ExceptionControllerAdvice {
+  private final Logger logger = LoggerFactory.getLogger(this.getClass());
+  @Autowired
+  private Environment environment;
+  /**
+  * Exception handler for general exception "Exception".
+  *
+  * @param exception
+  * @return the error information with error code and error message
+  */
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity<ErrorInfo> generalExceptionHandler(Exception ex)
+  {
+    logger.error(ex.getMessage(), ex);
+    ErrorInfo errorInfo = new ErrorInfo();
+    errorInfo.setErrorCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+    errorInfo.setErrorMsg(environment.getProperty(InfyVidStreamConstants.INFYVIDSTREAM_EXCEPTIONMSG_GENERAL.toString()));
+    return new ResponseEntity<>(errorInfo, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+  /**
+  * Exception handler for InfyPandaException.
+  *
+  * @param exception
+  * @return the error information with error code and error message
+  */
+  @ExceptionHandler(InfyVidStreamException.class)
+  public ResponseEntity<ErrorInfo> infyVidStreamExceptionHandler(InfyVidStreamException ex)
+  {
+    logger.error(ex.getMessage(), ex);
+    ErrorInfo errorInfo = new ErrorInfo();
+    errorInfo.setErrorCode(HttpStatus.BAD_REQUEST.value());
+    errorInfo.setErrorMsg(environment.getProperty(ex.getMessage()));
+    return new ResponseEntity<>(errorInfo, HttpStatus.BAD_REQUEST);
+  }
+  /**
+  * Exception handler for MethodArgumentNotValidException and
+  * ConstraintViolationException.
+  *
+  * @param exception
+  * @return the error information with error code and error message
+  */
+  @ExceptionHandler({MethodArgumentNotValidException.class,ConstraintViolationException.class})
+  public ResponseEntity<ErrorInfo> exceptionHandler(Exception ex)
+  {
+    logger.error(ex.getMessage(), ex);
+    String errorMsg;
+    if (ex instanceof MethodArgumentNotValidException) {
+      MethodArgumentNotValidException manve = (MethodArgumentNotValidException) ex;
+      errorMsg = manve.getBindingResult().getAllErrors().stream().map(x -> x.getDefaultMessage())
+          .collect(Collectors.joining(", "));
+    } else {
+      ConstraintViolationException cve = (ConstraintViolationException) ex;
+      errorMsg = cve.getConstraintViolations().stream().map(x -> x.getMessage())
+          .collect(Collectors.joining(", "));
+    }
+    ErrorInfo errorInfo = new ErrorInfo();
+    errorInfo.setErrorCode(HttpStatus.BAD_REQUEST.value());
+    errorInfo.setErrorMsg(errorMsg);
+    return new ResponseEntity<>(errorInfo, HttpStatus.BAD_REQUEST);
+  }
+}
+=============================================================================
+#Add appropriate properties as per the instructions given in Question Paper.
+#Database properties
+spring.datasource.url=jdbc:mysql://localhost:3306/db_infyvideostream
+spring.datasource.username=root
+spring.datasource.password=root
+server.port=2222
+server.servlet.context-path=/InfyVidStream
